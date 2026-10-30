@@ -1,1216 +1,227 @@
-/* =========================================================
-   AAMIR MOHTASHIM
-   LUXURY NFC DIGITAL IDENTITY
-   PREMIUM INTERACTION ENGINE
-========================================================= */
 
+"use strict";
 
-/* =========================================================
-   CONFIG
-========================================================= */
+document.addEventListener("DOMContentLoaded", () => {
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) =>
+    Array.from(root.querySelectorAll(selector));
 
-const PROFILE = {
+  const modal = $("#shareModal");
+  const toast = $("#toast");
+  const toastMessage = $("#toastMessage");
 
-  name:
-    "Aamir Mohtashim",
+  let toastTimer;
+  let lastFocusedElement = null;
 
-  profession:
-    "Waterproofing Engineer",
+  $("#currentYear").textContent = new Date().getFullYear();
 
-  phone:
-    "+919910106056",
+  const getProfileUrl = () => window.location.href.split("#")[0];
 
-  email:
-    "nirman.speciality@gmail.com",
+  function showToast(message) {
+    if (!toast || !toastMessage) return;
 
-  businessProfile:
-    "https://share.google/R18zvgH84cBKSYKSt",
+    toastMessage.textContent = message;
+    toast.classList.add("show");
 
-  whatsapp:
-    "https://wa.me/919910106056"
-
-};
-
-
-/* =========================================================
-   DOM ELEMENTS
-========================================================= */
-
-const loader =
-  document.getElementById("loader");
-
-const toast =
-  document.getElementById("toast");
-
-const toastMessage =
-  document.getElementById("toastMessage");
-
-const bubbles =
-  document.getElementById("bubbles");
-
-const shareModal =
-  document.getElementById("shareModal");
-
-const shareBackdrop =
-  document.getElementById("shareBackdrop");
-
-const shareClose =
-  document.getElementById("shareClose");
-
-const copyProfileLink =
-  document.getElementById("copyProfileLink");
-
-const nativeShare =
-  document.getElementById("nativeShare");
-
-const openQR =
-  document.getElementById("openQR");
-
-const qrModal =
-  document.getElementById("qrModal");
-
-const qrBackdrop =
-  document.getElementById("qrBackdrop");
-
-const qrClose =
-  document.getElementById("qrClose");
-
-const profileQR =
-  document.getElementById("profileQR");
-
-const downloadQR =
-  document.getElementById("downloadQR");
-
-
-/* =========================================================
-   UTILITY
-========================================================= */
-
-function isTouchDevice() {
-
-  return (
-    window.matchMedia("(hover: none)").matches ||
-    "ontouchstart" in window ||
-    navigator.maxTouchPoints > 0
-  );
-
-}
-
-
-/* =========================================================
-   FLOATING BUBBLES
-========================================================= */
-
-function createBubbles() {
-
-  if (!bubbles) return;
-
-  const amount =
-    window.innerWidth < 600
-      ? 14
-      : 22;
-
-  const fragment =
-    document.createDocumentFragment();
-
-  for (
-    let i = 0;
-    i < amount;
-    i++
-  ) {
-
-    const bubble =
-      document.createElement("span");
-
-    bubble.className =
-      "bubble";
-
-    const size =
-      Math.floor(
-        Math.random() * 48
-      ) + 10;
-
-    const left =
-      Math.random() * 100;
-
-    const duration =
-      Math.floor(
-        Math.random() * 12
-      ) + 10;
-
-    const delay =
-      Math.random() * 12;
-
-    bubble.style.width =
-      `${size}px`;
-
-    bubble.style.height =
-      `${size}px`;
-
-    bubble.style.left =
-      `${left}%`;
-
-    bubble.style.animationDuration =
-      `${duration}s`;
-
-    bubble.style.animationDelay =
-      `-${delay}s`;
-
-    fragment.appendChild(
-      bubble
-    );
-
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2400);
   }
 
-  bubbles.appendChild(
-    fragment
-  );
+  async function copyText(value, successMessage = "Copied successfully") {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const field = document.createElement("textarea");
+        field.value = value;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        field.style.pointerEvents = "none";
 
-}
+        document.body.appendChild(field);
+        field.select();
 
-createBubbles();
+        const copied = document.execCommand("copy");
+        field.remove();
 
+        if (!copied) throw new Error("Copy failed");
+      }
 
-/* =========================================================
-   LOADER
-========================================================= */
+      showToast(successMessage);
+    } catch {
+      showToast("Unable to copy. Please copy the link manually.");
+    }
+  }
 
-window.addEventListener(
-  "load",
-  () => {
+  // Share dialog
+  function openShareModal() {
+    if (!modal) return;
 
-    setTimeout(
+    lastFocusedElement = document.activeElement;
+
+    const urlField = $("#profileUrl");
+    if (urlField) urlField.textContent = getProfileUrl();
+
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    $("#closeModal")?.focus();
+  }
+
+  function closeShareModal() {
+    if (!modal) return;
+
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+
+    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+      lastFocusedElement.focus();
+    }
+  }
+
+  $("#shareTop")?.addEventListener("click", openShareModal);
+  $("#closeModal")?.addEventListener("click", closeShareModal);
+
+  modal?.addEventListener("click", (event) => {
+    if (event.target === modal) closeShareModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal?.classList.contains("open")) {
+      closeShareModal();
+    }
+  });
+
+  $("#copyProfileLink")?.addEventListener("click", () => {
+    copyText(getProfileUrl(), "Profile link copied");
+  });
+
+  $("#copyModalLink")?.addEventListener("click", () => {
+    copyText(getProfileUrl(), "Profile link copied");
+  });
+
+  $("#nativeShare")?.addEventListener("click", async () => {
+    const url = getProfileUrl();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: document.title,
+          text: "View this professional profile",
+          url
+        });
+        closeShareModal();
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          showToast("Unable to open sharing options.");
+        }
+      }
+    } else {
+      await copyText(url, "Link copied — ready to share");
+    }
+  });
+
+   // Fixed bottom navigation
+  const navItems = $$(".nav-item[data-nav]");
+  const sections = navItems
+    .map((item) => document.getElementById(item.dataset.nav))
+    .filter(Boolean);
+
+  let manualNavigation = false;
+  let navigationTimer;
+
+  function setActiveNav(sectionId) {
+    navItems.forEach((item) => {
+      const active = item.dataset.nav === sectionId;
+
+      item.classList.toggle("active", active);
+
+      if (active) {
+        item.setAttribute("aria-current", "location");
+      } else {
+        item.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  function getCurrentSection() {
+    const marker = window.innerHeight * 0.30;
+    let current = sections[0];
+
+    sections.forEach((section) => {
+      if (section.getBoundingClientRect().top <= marker) {
+        current = section;
+      }
+    });
+
+    return current;
+  }
+
+  navItems.forEach((item) => {
+    item.addEventListener("click", (event) => {
+      const target = document.getElementById(item.dataset.nav);
+      if (!target) return;
+
+      event.preventDefault();
+
+      manualNavigation = true;
+      clearTimeout(navigationTimer);
+
+      setActiveNav(target.id);
+
+      target.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start"
+      });
+
+      if (window.history?.replaceState) {
+        window.history.replaceState(null, "", `#${target.id}`);
+      }
+
+      navigationTimer = setTimeout(() => {
+        manualNavigation = false;
+        setActiveNav(target.id);
+      }, 900);
+    });
+  });
+
+  if ("IntersectionObserver" in window && sections.length) {
+    const observer = new IntersectionObserver(
       () => {
+        if (manualNavigation) return;
 
-        loader?.classList.add(
-          "hide"
-        );
-
-      },
-      850
-    );
-
-  }
-);
-
-
-/* =========================================================
-   REVEAL OBSERVER
-========================================================= */
-
-const revealElements =
-  document.querySelectorAll(
-    ".reveal"
-  );
-
-
-if (
-  "IntersectionObserver" in window
-) {
-
-  const revealObserver =
-    new IntersectionObserver(
-      entries => {
-
-        entries.forEach(
-          entry => {
-
-            if (
-              entry.isIntersecting
-            ) {
-
-              entry.target.classList.add(
-                "visible"
-              );
-
-              revealObserver.unobserve(
-                entry.target
-              );
-
-            }
-
-          }
-        );
-
+        const current = getCurrentSection();
+        if (current) setActiveNav(current.id);
       },
       {
-        threshold: 0.12,
-        rootMargin: "0px 0px -40px 0px"
+        root: null,
+        rootMargin: "-20% 0px -55% 0px",
+        threshold: [0, 0.15, 0.35, 0.6]
       }
     );
 
-
-  revealElements.forEach(
-    element => {
-
-      revealObserver.observe(
-        element
-      );
-
-    }
-  );
-
-} else {
-
-  revealElements.forEach(
-    element => {
-
-      element.classList.add(
-        "visible"
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   TOAST
-========================================================= */
-
-let toastTimer = null;
-
-
-function showToast(
-  message
-) {
-
-  if (
-    !toast ||
-    !toastMessage
-  ) return;
-
-  toastMessage.textContent =
-    message;
-
-  toast.classList.add(
-    "show"
-  );
-
-  clearTimeout(
-    toastTimer
-  );
-
-  toastTimer =
-    setTimeout(
-      () => {
-
-        toast.classList.remove(
-          "show"
-        );
-
-      },
-      2400
-    );
-
-}
-
-
-/* =========================================================
-   CLIPBOARD FALLBACK
-========================================================= */
-
-async function copyToClipboard(
-  text
-) {
-
-  if (
-    navigator.clipboard &&
-    window.isSecureContext
-  ) {
-
-    await navigator.clipboard.writeText(
-      text
-    );
-
-    return true;
-
+    sections.forEach((section) => observer.observe(section));
   }
 
+  const initialSection = window.location.hash.slice(1);
 
-  try {
-
-    const textarea =
-      document.createElement(
-        "textarea"
-      );
-
-    textarea.value =
-      text;
-
-    textarea.setAttribute(
-      "readonly",
-      ""
-    );
-
-    textarea.style.position =
-      "fixed";
-
-    textarea.style.opacity =
-      "0";
-
-    textarea.style.pointerEvents =
-      "none";
-
-    document.body.appendChild(
-      textarea
-    );
-
-    textarea.select();
-
-    textarea.setSelectionRange(
-      0,
-      textarea.value.length
-    );
-
-    const successful =
-      document.execCommand(
-        "copy"
-      );
-
-    textarea.remove();
-
-    return successful;
-
-  } catch {
-
-    return false;
-
-  }
-
-}
-
-
-/* =========================================================
-   SHARE SHEET
-========================================================= */
-
-function openShareSheet() {
-
-  if (!shareModal) return;
-
-  shareModal.classList.add(
-    "active"
-  );
-
-  document.body.classList.add(
-    "share-open"
-  );
-
-}
-
-
-function closeShareSheet() {
-
-  if (!shareModal) return;
-
-  shareModal.classList.remove(
-    "active"
-  );
-
-  if (
-    !qrModal?.classList.contains(
-      "active"
-    )
-  ) {
-
-    document.body.classList.remove(
-      "share-open"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   CLOSE QR
-========================================================= */
-
-function closeQR() {
-
-  qrModal?.classList.remove(
-    "active"
-  );
-
-  if (
-    !shareModal?.classList.contains(
-      "active"
-    )
-  ) {
-
-    document.body.classList.remove(
-      "share-open"
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   PROFILE SHARE BUTTONS
-========================================================= */
-
-[
-  "shareTop",
-  "shareBottom",
-  "mobileShare"
-]
-.forEach(
-  id => {
-
-    const button =
-      document.getElementById(
-        id
-      );
-
-    button?.addEventListener(
-      "click",
-      event => {
-
-        event.preventDefault();
-
-        openShareSheet();
-
-      }
-    );
-
-  }
-);
-
-
-/* =========================================================
-   SHARE CLOSE EVENTS
-========================================================= */
-
-shareClose?.addEventListener(
-  "click",
-  closeShareSheet
-);
-
-
-shareBackdrop?.addEventListener(
-  "click",
-  closeShareSheet
-);
-
-
-/* =========================================================
-   COPY PROFILE LINK
-========================================================= */
-
-copyProfileLink?.addEventListener(
-  "click",
-  async event => {
-
-    event.preventDefault();
-
-    const copied =
-      await copyToClipboard(
-        window.location.href
-      );
-
-    if (copied) {
-
-      closeShareSheet();
-
-      showToast(
-        "Profile link copied"
-      );
-
-    } else {
-
-      showToast(
-        "Unable to copy link"
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   NATIVE SHARE
-========================================================= */
-
-nativeShare?.addEventListener(
-  "click",
-  async event => {
-
-    event.preventDefault();
-
-
-    const shareData = {
-
-      title:
-        `${PROFILE.name} | ${PROFILE.profession}`,
-
-      text:
-        `Connect with ${PROFILE.name} — ${PROFILE.profession}.`,
-
-      url:
-        window.location.href
-
-    };
-
-
-    if (
-      typeof navigator.share !==
-      "function"
-    ) {
-
-      const copied =
-        await copyToClipboard(
-          window.location.href
-        );
-
-      if (copied) {
-
-        closeShareSheet();
-
-        showToast(
-          "Profile link copied"
-        );
-
-      } else {
-
-        showToast(
-          "Sharing is not supported"
-        );
-
-      }
-
-      return;
-
-    }
-
-
-    try {
-
-      await navigator.share(
-        shareData
-      );
-
-    } catch (error) {
-
-      if (
-        error?.name ===
-        "AbortError"
-      ) {
-
-        return;
-
-      }
-
-      showToast(
-        "Unable to open share menu"
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   GENERATE QR
-========================================================= */
-
-function generateProfileQR() {
-
-  if (!profileQR) return null;
-
-  const profileURL =
-    window.location.href;
-
-  const qrURL =
-    `https://api.qrserver.com/v1/create-qr-code/?size=900x900&margin=20&data=${encodeURIComponent(profileURL)}`;
-
-  profileQR.src =
-    qrURL;
-
-  profileQR.alt =
-    `${PROFILE.name} profile QR code`;
-
-  return qrURL;
-
-}
-
-
-/* =========================================================
-   OPEN QR MODAL
-========================================================= */
-
-openQR?.addEventListener(
-  "click",
-  event => {
-
-    event.preventDefault();
-
-    if (!qrModal) return;
-
-    generateProfileQR();
-
-    closeShareSheet();
-
-    setTimeout(
-      () => {
-
-        qrModal.classList.add(
-          "active"
-        );
-
-        document.body.classList.add(
-          "share-open"
-        );
-
-      },
-      180
-    );
-
-  }
-);
-
-
-/* =========================================================
-   QR CLOSE EVENTS
-========================================================= */
-
-qrClose?.addEventListener(
-  "click",
-  closeQR
-);
-
-
-qrBackdrop?.addEventListener(
-  "click",
-  closeQR
-);
-
-
-/* =========================================================
-   QR IMAGE LOAD ERROR
-========================================================= */
-
-profileQR?.addEventListener(
-  "error",
-  () => {
-
-    showToast(
-      "Unable to generate QR code"
-    );
-
-  }
-);
-
-
-/* =========================================================
-   DOWNLOAD QR
-========================================================= */
-
-downloadQR?.addEventListener(
-  "click",
-  async event => {
-
-    event.preventDefault();
-
-    if (
-      !profileQR ||
-      !profileQR.src
-    ) {
-
-      showToast(
-        "QR code is not ready"
-      );
-
-      return;
-
-    }
-
-
-    try {
-
-      const response =
-        await fetch(
-          profileQR.src,
-          {
-            mode: "cors"
-          }
-        );
-
-
-      if (
-        !response.ok
-      ) {
-
-        throw new Error(
-          "QR request failed"
-        );
-
-      }
-
-
-      const blob =
-        await response.blob();
-
-
-      const blobURL =
-        URL.createObjectURL(
-          blob
-        );
-
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-      link.href =
-        blobURL;
-
-      link.download =
-        "Aamir-Mohtashim-QR-Code.png";
-
-      link.style.display =
-        "none";
-
-      document.body.appendChild(
-        link
-      );
-
-      link.click();
-
-      link.remove();
-
-
-      setTimeout(
-        () => {
-
-          URL.revokeObjectURL(
-            blobURL
-          );
-
-        },
-        1000
-      );
-
-
-      showToast(
-        "QR code saved"
-      );
-
-
-    } catch {
-
-      /*
-       * Some browsers block downloading
-       * third-party images through fetch.
-       * Open the QR image instead.
-       */
-
-      window.open(
-        profileQR.src,
-        "_blank",
-        "noopener,noreferrer"
-      );
-
-      showToast(
-        "Opening QR image"
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   ESC KEY
-========================================================= */
-
-document.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key !==
-      "Escape"
-    ) return;
-
-    closeShareSheet();
-
-    closeQR();
-
-  }
-);
-
-
-/* =========================================================
-   BACKDROP / MODAL CLICK PROTECTION
-========================================================= */
-
-shareModal?.addEventListener(
-  "click",
-  event => {
-
-    if (
-      event.target ===
-      shareModal
-    ) {
-
-      closeShareSheet();
-
-    }
-
-  }
-);
-
-
-qrModal?.addEventListener(
-  "click",
-  event => {
-
-    if (
-      event.target ===
-      qrModal
-    ) {
-
-      closeQR();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   SMART TOUCH DEVICE
-========================================================= */
-
-if (
-  isTouchDevice()
-) {
-
-  document.body.classList.add(
-    "touch-device"
-  );
-
-}
-
-
-/* =========================================================
-   PREMIUM MAGNETIC BUTTONS
-========================================================= */
-
-const magneticButtons =
-  document.querySelectorAll(
-    ".btn-primary, .btn-secondary, .business-button, .final-button, .creator-btn"
-  );
-
-
-if (
-  !isTouchDevice()
-) {
-
-  magneticButtons.forEach(
-    button => {
-
-      button.addEventListener(
-        "pointermove",
-        event => {
-
-          if (
-            window.innerWidth < 700
-          ) return;
-
-
-          const rect =
-            button.getBoundingClientRect();
-
-
-          const x =
-            event.clientX -
-            rect.left;
-
-
-          const y =
-            event.clientY -
-            rect.top;
-
-
-          const moveX =
-            (
-              x -
-              rect.width / 2
-            ) * 0.035;
-
-
-          const moveY =
-            (
-              y -
-              rect.height / 2
-            ) * 0.035;
-
-
-          button.style.setProperty(
-            "--mag-x",
-            `${moveX}px`
-          );
-
-          button.style.setProperty(
-            "--mag-y",
-            `${moveY}px`
-          );
-
-
-          button.classList.add(
-            "magnetic-active"
-          );
-
-        }
-      );
-
-
-      button.addEventListener(
-        "pointerleave",
-        () => {
-
-          button.style.removeProperty(
-            "--mag-x"
-          );
-
-          button.style.removeProperty(
-            "--mag-y"
-          );
-
-          button.classList.remove(
-            "magnetic-active"
-          );
-
-        }
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   CONTACT / EXPERTISE TILT
-========================================================= */
-
-if (
-  !isTouchDevice()
-) {
-
-  document
-    .querySelectorAll(
-      ".contact-card, .expertise"
-    )
-    .forEach(
-      card => {
-
-        card.addEventListener(
-          "pointermove",
-          event => {
-
-            if (
-              window.innerWidth < 700
-            ) return;
-
-
-            const rect =
-              card.getBoundingClientRect();
-
-
-            const x =
-              event.clientX -
-              rect.left;
-
-
-            const y =
-              event.clientY -
-              rect.top;
-
-
-            const rotateY =
-              (
-                (x -
-                  rect.width / 2) /
-                rect.width
-              ) * 2;
-
-
-            const rotateX =
-              (
-                (y -
-                  rect.height / 2) /
-                rect.height
-              ) * -2;
-
-
-            card.style.setProperty(
-              "--tilt-x",
-              `${rotateX}deg`
-            );
-
-            card.style.setProperty(
-              "--tilt-y",
-              `${rotateY}deg`
-            );
-
-            card.classList.add(
-              "tilt-active"
-            );
-
-          }
-        );
-
-
-        card.addEventListener(
-          "pointerleave",
-          () => {
-
-            card.style.removeProperty(
-              "--tilt-x"
-            );
-
-            card.style.removeProperty(
-              "--tilt-y"
-            );
-
-            card.classList.remove(
-              "tilt-active"
-            );
-
-          }
-        );
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   CREATOR BUTTON FEEDBACK
-========================================================= */
-
-document
-  .querySelectorAll(
-    ".creator-btn"
-  )
-  .forEach(
-    button => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          button.classList.add(
-            "creator-clicked"
-          );
-
-          setTimeout(
-            () => {
-
-              button.classList.remove(
-                "creator-clicked"
-              );
-
-            },
-            450
-          );
-
-        }
-      );
-
-    }
-  );
-
-
-/* =========================================================
-   REDUCED MOTION
-========================================================= */
-
-const reducedMotion =
-  window.matchMedia(
-    "(prefers-reduced-motion: reduce)"
-  );
-
-
-function applyReducedMotion() {
-
-  if (
-    reducedMotion.matches
-  ) {
-
-    document.documentElement.style
-      .setProperty(
-        "scroll-behavior",
-        "auto"
-      );
-
-    document.body.classList.add(
-      "reduced-motion"
-    );
-
+  if (sections.some((section) => section.id === initialSection)) {
+    setActiveNav(initialSection);
   } else {
-
-    document.body.classList.remove(
-      "reduced-motion"
-    );
-
+    setActiveNav("home");
   }
 
-}
-
-
-applyReducedMotion();
-
-
-reducedMotion.addEventListener?.(
-  "change",
-  applyReducedMotion
-);
-
-
-/* =========================================================
-   VISIBILITY OPTIMIZATION
-========================================================= */
-
-document.addEventListener(
-  "visibilitychange",
-  () => {
-
-    document.body.classList.toggle(
-      "page-hidden",
-      document.hidden
-    );
-
-  }
-);
-
-
-/* =========================================================
-   CONSOLE BRANDING
-========================================================= */
-
-console.log(
-  "%cAAMIR MOHTASHIM",
-  "color:#207666;font-size:18px;font-weight:800;"
-);
-
-console.log(
-  "%cLuxury NFC Digital Identity",
-  "color:#777;font-size:11px;"
-);
-
-console.log(
-  "%cPowered by TAP X",
-  "color:#ff650f;font-size:12px;font-weight:800;"
-);
+  // Optional copy controls
+  $$("[data-copy]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = button.getAttribute("data-copy");
+      if (value) copyText(value);
+    });
+  });
+});
